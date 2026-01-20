@@ -61,6 +61,9 @@ class StructuredReport:
     # Full markdown
     markdown: str
 
+    # So what summary (1-liner actionable insight)
+    so_what: str = ""
+
 
 def truncate_text(text: str, max_chars: int = 500) -> str:
     """Truncate text to max chars, preserving word boundaries."""
@@ -259,6 +262,14 @@ def generate_structured_report(
     # Generate scorecards
     scorecards = generate_scorecards(top_clusters, post_features, weights, top_n=3)
 
+    # Generate "So what?" actionable summary
+    so_what = generate_so_what_summary(
+        scorecards=scorecards,
+        clusters=clusters,
+        goal_prompt=goal_prompt,
+        template_id=template_id,
+    )
+
     # Build markdown
     markdown = build_markdown_report(
         radar=radar,
@@ -266,6 +277,7 @@ def generate_structured_report(
         scorecards=scorecards,
         weights=weights,
         llm_content=llm_content,
+        so_what=so_what,
     )
 
     return StructuredReport(
@@ -276,6 +288,7 @@ def generate_structured_report(
         scorecards=scorecards,
         post_features=post_features,
         markdown=markdown,
+        so_what=so_what,
     )
 
 
@@ -285,10 +298,12 @@ def build_markdown_report(
     scorecards: list[Scorecard],
     weights: TemplateWeights,
     llm_content: str = "",
+    so_what: str = "",
 ) -> str:
     """Build the final markdown report.
 
     Sections:
+    0. So What? (actionable 1-liner)
     1. Radar (New/Repeating/Rising)
     2. Cluster Summary
     3. Top 3 Items with scorecards
@@ -297,6 +312,11 @@ def build_markdown_report(
     6. Next Actions
     """
     sections = []
+
+    # 0. So What? (actionable 1-liner at the very top)
+    if so_what:
+        sections.append("## So What?\n")
+        sections.append(f"*{so_what}*\n")
 
     # 1. Radar
     sections.append(format_radar_section(radar))
@@ -452,6 +472,94 @@ def format_next_actions(scorecards: list[Scorecard], weights: TemplateWeights) -
         lines.append("")
 
     return "\n".join(lines)
+
+
+def generate_so_what_summary(
+    scorecards: list[Scorecard],
+    clusters: list[ClusterResult],
+    goal_prompt: str,
+    template_id: str,
+) -> str:
+    """Generate a 1-liner 'So what?' actionable summary using LLM.
+
+    This summary distills the entire analysis into a single actionable insight
+    that tells the user what to do with the findings.
+
+    Args:
+        scorecards: Top scorecards from analysis
+        clusters: Cluster results
+        goal_prompt: User's goal/use case
+        template_id: Template ID for context
+
+    Returns:
+        1-2 sentence actionable summary, or empty string on failure
+    """
+    try:
+        from src.llm_client import get_llm_client, LLMClientError
+    except ImportError:
+        logger.warning("[SoWhat] LLM client not available")
+        return ""
+
+    if not scorecards:
+        return ""
+
+    # Build context for LLM
+    top_items = []
+    for sc in scorecards[:3]:
+        top_items.append(
+            f"- {sc.title} ({sc.cluster}): signal={sc.signal_strength}★, "
+            f"WTP={sc.impact_wtp}★, complexity={sc.complexity}★"
+        )
+
+    # Get rising/new clusters for context
+    cluster_context = []
+    for c in clusters[:5]:
+        signals = ", ".join(c.key_signals[:3]) if c.key_signals else "mixed"
+        cluster_context.append(f"- {c.cluster_name}: {c.frequency_posts} posts, signals: {signals}")
+
+    prompt = f"""Based on this Reddit analysis, write ONE actionable 1-2 sentence "So what?" summary.
+
+USER'S GOAL: {goal_prompt}
+
+TOP OPPORTUNITIES:
+{chr(10).join(top_items)}
+
+TOPIC CLUSTERS:
+{chr(10).join(cluster_context)}
+
+The summary should:
+1. Identify the STRONGEST actionable theme/opportunity
+2. Give ONE specific validation step or quick win
+3. Be concrete, not generic - use actual topics from the analysis
+
+Example format:
+"This week's strongest theme: [theme]. Quick validation: [specific action]."
+
+Write ONLY the 1-2 sentence summary, nothing else:"""
+
+    try:
+        client = get_llm_client()
+        response = client.complete(
+            prompt=prompt,
+            max_tokens=150,
+            temperature=0.3,  # Lower temperature for concise output
+        )
+
+        # Clean up response
+        summary = response.strip()
+        # Remove quotes if LLM wrapped it
+        if summary.startswith('"') and summary.endswith('"'):
+            summary = summary[1:-1]
+        # Ensure it's not too long
+        if len(summary) > 300:
+            summary = summary[:297] + "..."
+
+        logger.info(f"[SoWhat] Generated summary: {summary[:100]}...")
+        return summary
+
+    except Exception as e:
+        logger.warning(f"[SoWhat] Failed to generate summary: {e}")
+        return ""
 
 
 def clusters_to_db_format(clusters: list[ClusterResult], run_id: str) -> list[dict]:

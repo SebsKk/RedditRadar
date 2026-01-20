@@ -403,6 +403,7 @@ class ClusterResult:
 
 # Common stopwords to filter from keywords
 STOPWORDS = {
+    # Articles, pronouns, prepositions
     'the', 'a', 'an', 'is', 'are', 'was', 'were', 'be', 'been', 'being',
     'have', 'has', 'had', 'do', 'does', 'did', 'will', 'would', 'could',
     'should', 'may', 'might', 'must', 'shall', 'can', 'need', 'dare',
@@ -428,6 +429,17 @@ STOPWORDS = {
     'thing', 'things', 'lot', 'kind', 'point', 'part', 'place', 'case',
     'week', 'company', 'system', 'program', 'question', 'hand', 'number',
     'https', 'http', 'www', 'com', 'reddit', 'subreddit', 'post', 'comment',
+    # Utility tokens and linguistic artifacts
+    'end', 'note', 'similar', 'format', 'example', 'basically', 'actually',
+    'probably', 'maybe', 'perhaps', 'definitely', 'certainly', 'usually',
+    'always', 'never', 'sometimes', 'often', 'ago', 'months', 'days', 'years',
+    'hours', 'minutes', 'seconds', 'today', 'yesterday', 'tomorrow',
+    'looking', 'thinking', 'wondering', 'trying', 'getting', 'making',
+    'starting', 'using', 'seeing', 'finding', 'going', 'coming', 'being',
+    'having', 'doing', 'saying', 'asking', 'telling', 'showing', 'keeping',
+    'edit', 'update', 'thanks', 'thank', 'please', 'sorry', 'hope', 'guess',
+    'sure', 'pretty', 'quite', 'rather', 'really', 'truly', 'simply',
+    'imo', 'imho', 'tbh', 'fwiw', 'btw', 'afaik', 'iirc', 'etc', 'ie', 'eg',
 }
 
 # Location/country names to downweight in signals (noisy in global discussions)
@@ -505,15 +517,18 @@ def extract_bigrams(tokens: list[str]) -> list[str]:
 def extract_cluster_signals(
     texts_with_engagement: list[tuple[str, int]],
     top_n: int = 5,
+    min_doc_frequency: int = 2,
 ) -> list[str]:
     """Extract top signals for a cluster using tf * engagement weighting.
 
     Prefers bigrams over unigrams for more meaningful signals.
     Filters out location names and generic words.
+    Requires terms to appear in multiple documents (posts) to avoid noise.
 
     Args:
         texts_with_engagement: List of (text, engagement_score) tuples
         top_n: Number of top signals to return
+        min_doc_frequency: Minimum number of documents a term must appear in
 
     Returns:
         List of top signal terms/bigrams
@@ -521,9 +536,13 @@ def extract_cluster_signals(
     if not texts_with_engagement:
         return []
 
-    # Collect all terms with engagement weighting
+    num_docs = len(texts_with_engagement)
+
+    # Track both scores and document frequency
     bigram_scores: dict[str, float] = {}
+    bigram_doc_freq: dict[str, int] = {}
     unigram_scores: dict[str, float] = {}
+    unigram_doc_freq: dict[str, int] = {}
 
     total_engagement = sum(max(e, 1) for _, e in texts_with_engagement)
 
@@ -539,6 +558,10 @@ def extract_cluster_signals(
         token_counts = Counter(tokens)
         total = len(tokens)
 
+        # Track unique terms in this document (for doc frequency)
+        seen_unigrams: set[str] = set()
+        seen_bigrams: set[str] = set()
+
         # Score unigrams
         for token, count in token_counts.items():
             if len(token) < 3 or token in STOPWORDS:
@@ -549,6 +572,9 @@ def extract_cluster_signals(
             tf = count / total
             score = tf * (1 + eng_weight * 2)  # Boost by engagement
             unigram_scores[token] = unigram_scores.get(token, 0) + score
+            if token not in seen_unigrams:
+                unigram_doc_freq[token] = unigram_doc_freq.get(token, 0) + 1
+                seen_unigrams.add(token)
 
         # Score bigrams
         bigrams = extract_bigrams(tokens)
@@ -557,18 +583,34 @@ def extract_cluster_signals(
             tf = count / max(len(bigrams), 1)
             score = tf * (1 + eng_weight * 2)
             bigram_scores[bigram] = bigram_scores.get(bigram, 0) + score
+            if bigram not in seen_bigrams:
+                bigram_doc_freq[bigram] = bigram_doc_freq.get(bigram, 0) + 1
+                seen_bigrams.add(bigram)
+
+    # Adjust min_doc_frequency if we have few documents
+    effective_min_df = min(min_doc_frequency, max(1, num_docs // 3))
+
+    # Filter to terms appearing in enough documents
+    valid_bigrams = {
+        bg: score for bg, score in bigram_scores.items()
+        if bigram_doc_freq.get(bg, 0) >= effective_min_df
+    }
+    valid_unigrams = {
+        tok: score for tok, score in unigram_scores.items()
+        if unigram_doc_freq.get(tok, 0) >= effective_min_df
+    }
 
     # Combine results, preferring bigrams (more meaningful)
     signals = []
 
     # Add top bigrams first (up to 3)
-    sorted_bigrams = sorted(bigram_scores.items(), key=lambda x: x[1], reverse=True)
+    sorted_bigrams = sorted(valid_bigrams.items(), key=lambda x: x[1], reverse=True)
     for bigram, score in sorted_bigrams[:3]:
         if score > 0.01:  # Minimum threshold
             signals.append(bigram)
 
     # Fill remaining with top unigrams
-    sorted_unigrams = sorted(unigram_scores.items(), key=lambda x: x[1], reverse=True)
+    sorted_unigrams = sorted(valid_unigrams.items(), key=lambda x: x[1], reverse=True)
     for token, score in sorted_unigrams:
         if len(signals) >= top_n:
             break

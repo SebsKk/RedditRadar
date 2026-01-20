@@ -181,7 +181,11 @@ def compute_radar(
 
     # =========================================================================
     # RISING: clusters with significant delta vs previous run
-    # Rising if: (freq_delta >= 2) OR (engagement_delta >= 500) OR (engagement_ratio >= 1.5)
+    # Rising requires meaningful change, not noise:
+    #   - freq_delta >= 2 posts, OR
+    #   - engagement_delta >= 10% of previous, OR
+    #   - comments_delta >= 10% of previous
+    # Small absolute changes (like +51 out of 4.6k) are not "rising"
     # =========================================================================
     rising_clusters = []
     rising_info = {}
@@ -199,29 +203,47 @@ def compute_radar(
             prev_freq = prev.get("frequency_posts", 0)
             freq_delta = current_freq - prev_freq
 
-            current_engagement = c.engagement_score_sum + c.engagement_comments_sum
-            prev_engagement = prev.get("engagement_score_sum", 0) + prev.get("engagement_comments_sum", 0)
-            engagement_delta = current_engagement - prev_engagement
+            current_score = c.engagement_score_sum
+            prev_score = prev.get("engagement_score_sum", 0)
+            score_delta = current_score - prev_score
 
-            # Check rising criteria
+            current_comments = c.engagement_comments_sum
+            prev_comments = prev.get("engagement_comments_sum", 0)
+            comments_delta = current_comments - prev_comments
+
+            # Calculate percentage changes (avoid division by zero)
+            score_pct_change = (score_delta / prev_score * 100) if prev_score > 0 else 0
+            comments_pct_change = (comments_delta / prev_comments * 100) if prev_comments > 0 else 0
+
+            # Check rising criteria - require meaningful deltas
             is_rising = False
+            rising_reason = ""
+
+            # Frequency: +2 posts is meaningful
             if freq_delta >= 2:
                 is_rising = True
-                logger.info(f"[Radar] Rising (freq): {c.cluster_name} +{freq_delta} posts")
-            elif engagement_delta >= 500:
+                rising_reason = f"+{freq_delta} posts"
+                logger.info(f"[Radar] Rising (freq): {c.cluster_name} {rising_reason}")
+
+            # Score: +10% is meaningful (not tiny absolute changes)
+            elif score_pct_change >= 10 and score_delta > 0:
                 is_rising = True
-                logger.info(f"[Radar] Rising (engagement): {c.cluster_name} +{engagement_delta} score")
-            elif prev_engagement > 0 and current_engagement / prev_engagement >= 1.5:
+                rising_reason = f"+{score_pct_change:.0f}% score"
+                logger.info(f"[Radar] Rising (score): {c.cluster_name} {rising_reason}")
+
+            # Comments: +10% is meaningful
+            elif comments_pct_change >= 10 and comments_delta > 0:
                 is_rising = True
-                logger.info(f"[Radar] Rising (ratio): {c.cluster_name} {current_engagement/prev_engagement:.1f}x")
+                rising_reason = f"+{comments_pct_change:.0f}% comments"
+                logger.info(f"[Radar] Rising (comments): {c.cluster_name} {rising_reason}")
 
             if is_rising:
                 rising_clusters.append(c.cluster_name)
                 rising_info[c.cluster_name] = RisingDelta(
                     freq_delta=freq_delta,
-                    engagement_delta=engagement_delta,
+                    engagement_delta=score_delta,
                     freq_prev=prev_freq,
-                    engagement_prev=prev_engagement,
+                    engagement_prev=prev_score,
                 )
 
         # Sort rising by composite delta score
@@ -231,7 +253,9 @@ def compute_radar(
                 return 0
             # Normalize and combine freq + engagement deltas
             freq_score = min(info.freq_delta / 5, 1.0) if info.freq_delta > 0 else 0
-            eng_score = min(info.engagement_delta / 2000, 1.0) if info.engagement_delta > 0 else 0
+            # Use percentage for engagement scoring
+            eng_pct = (info.engagement_delta / max(info.engagement_prev, 1)) if info.engagement_prev > 0 else 0
+            eng_score = min(eng_pct / 0.5, 1.0)  # 50% growth = max score
             return 0.6 * freq_score + 0.4 * eng_score
 
         rising_clusters.sort(key=rising_score, reverse=True)

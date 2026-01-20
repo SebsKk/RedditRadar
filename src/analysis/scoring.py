@@ -327,9 +327,29 @@ def generate_scorecards(
             features_by_cluster[pf.cluster] = []
         features_by_cluster[pf.cluster].append(pf)
 
+    # Filter clusters for Top 3 - exclude "General" unless it's truly dominant
+    # "General" is a noise bucket and shouldn't appear unless it's genuinely significant
+    total_posts = sum(c.frequency_posts for c in clusters)
+    non_general = [c for c in clusters if c.cluster_id != "general"]
+    general_cluster = next((c for c in clusters if c.cluster_id == "general"), None)
+
+    eligible_clusters = list(non_general)
+
+    # Include "General" only if it has >30% of posts AND >1.5x engagement of second cluster
+    if general_cluster and total_posts > 0:
+        general_pct = general_cluster.frequency_posts / total_posts
+        second_best_engagement = non_general[0].engagement_score_sum if non_general else 0
+
+        if (general_pct > 0.30 and
+            general_cluster.engagement_score_sum > second_best_engagement * 1.5):
+            # General is genuinely dominant - include it
+            eligible_clusters.insert(0, general_cluster)
+            logger.info(f"[Scorecards] Including 'General' cluster: {general_pct:.0%} posts, "
+                       f"{general_cluster.engagement_score_sum} vs {second_best_engagement} engagement")
+
     scorecards = []
 
-    for cluster in clusters[:top_n]:
+    for cluster in eligible_clusters[:top_n]:
         cluster_features = features_by_cluster.get(cluster.cluster_id, [])
         if not cluster_features:
             continue
