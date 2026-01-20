@@ -59,6 +59,8 @@ venv/
 ENV/
 env.bak/
 venv.bak/
+Pipfile
+Pipfile.lock
 
 # IDE
 .idea/
@@ -75,13 +77,32 @@ output/*.md
 output/*.json
 
 # Secrets
+.env
 .env.local
+.env.production
 secrets.yaml
+*.pem
+*.key
+
+# Claude Code
+.claude/
+CLAUDE.md
+CLAUDE.local.md
 
 # OS
 .DS_Store
 Thumbs.db
+Desktop.ini
+.directory
 
 # Logs
 *.log
 logs/
+
+# Editor backup files
+*.bak
+*.orig
+
+# Temp files
+*.tmp
+*.temp
