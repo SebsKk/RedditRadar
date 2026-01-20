@@ -1,0 +1,27 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+praw = ">=7.7.0"
+openai = ">=1.0.0"
+fastapi = ">=0.109.0"
+uvicorn = {version = ">=0.27.0", extras = ["standard"]}
+jinja2 = ">=3.1.0"
+python-multipart = ">=0.0.6"
+pyyaml = ">=6.0.0"
+python-dotenv = ">=1.0.0"
+click = ">=8.1.0"
+rich = ">=13.0.0"
+aiosqlite = ">=0.19.0"
+httpx = ">=0.26.0"
+markdown = ">=3.5.0"
+pytest = ">=7.4.0"
+pytest-asyncio = ">=0.23.0"
+pytest-cov = ">=4.1.0"
+
+[dev-packages]
+
+[requires]
+python_version = "3.11"

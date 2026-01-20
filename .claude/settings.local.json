@@ -1,0 +1,20 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python3.11:*)",
+      "Bash(python3:*)",
+      "Bash(source venv/bin/activate)",
+      "Bash(pip install:*)",
+      "Bash(pip3 --version:*)",
+      "Bash(PYTHONPATH=. python3:*)",
+      "Bash(wc:*)",
+      "Bash(curl:*)",
+      "Bash(export PATH=\"$HOME/.local/bin:$PATH\")",
+      "Bash(python -c:*)",
+      "Bash(pkill:*)",
+      "Bash(find:*)",
+      "Bash(python -m pytest tests/ -v --tb=short)",
+      "Bash(python -m pytest:*)"
+    ]
+  }
+}

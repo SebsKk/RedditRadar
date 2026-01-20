@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}{{ template.name if template else run.goal_template }} - Reddit Radar{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .run-header {
+        background: var(--bg-secondary);
+        border-bottom: 1px solid var(--border);
+        padding: 32px 0;
+    }
+
+    .run-header-content {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 24px;
+    }
+
+    .run-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+
+    .run-meta {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 16px;
+        margin-top: 16px;
+    }
+
+    .run-meta-item {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-secondary);
+        font-size: 14px;
+    }
+
+    .run-meta-icon {
+        width: 20px;
+        height: 20px;
+        opacity: 0.6;
+    }
+
+    .run-content {
+        display: grid;
+        grid-template-columns: 1fr 320px;
+        gap: 32px;
+        padding: 32px 0;
+    }
+
+    @media (max-width: 1024px) {
+        .run-content {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .sidebar {
+        position: sticky;
+        top: 100px;
+        height: fit-content;
+    }
+
+    .sidebar-card {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 20px;
+        margin-bottom: 16px;
+    }
+
+    .sidebar-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 12px;
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+    }
+
+    .main-content {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 32px 40px;
+    }
+
+    .back-link {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        color: var(--text-secondary);
+        text-decoration: none;
+        font-size: 14px;
+        margin-bottom: 16px;
+    }
+
+    .back-link:hover {
+        color: var(--accent);
+    }
+
+    .action-buttons {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+
+    .action-buttons .btn {
+        width: 100%;
+        justify-content: center;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="run-header">
+    <div class="container">
+        <a href="/" class="back-link">
+            &larr; Back to Dashboard
+        </a>
+        <div class="run-header-content">
+            <div>
+                <h1 class="run-title">{{ template.name if template else run.goal_template }}</h1>
+                <p class="text-secondary">{{ template.description if template else '' }}</p>
+
+                <div class="run-meta">
+                    <div class="run-meta-item">
+                        <svg class="run-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"></path>
+                        </svg>
+                        {{ date_formatted }}
+                    </div>
+                    <div class="run-meta-item">
+                        <svg class="run-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"></path>
+                        </svg>
+                        {{ subreddits|length }} subreddits
+                    </div>
+                    <div class="run-meta-item">
+                        <svg class="run-meta-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"></path>
+                        </svg>
+                        {{ settings.get('posts_per_sub', 10) }} posts/sub
+                    </div>
+                </div>
+            </div>
+            <span class="badge badge-success" style="font-size: 14px; padding: 8px 16px;">Completed</span>
+        </div>
+    </div>
+</div>
+
+<div class="container">
+    <div class="run-content">
+        <div class="main-content markdown-content">
+            {% if markdown %}
+            {{ markdown | markdown | safe }}
+            {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📊</div>
+                <h3 class="empty-state-title">No content available</h3>
+                <p class="empty-state-text">The analysis report is not available.</p>
+            </div>
+            {% endif %}
+        </div>
+
+        <aside class="sidebar">
+            <div class="sidebar-card">
+                <h3 class="sidebar-title">Subreddits</h3>
+                <div class="subreddit-list" style="flex-direction: column; gap: 8px;">
+                    {% for sub in subreddits %}
+                    <a href="https://reddit.com/r/{{ sub }}" target="_blank" class="subreddit-tag" style="text-decoration: none;">
+                        {{ sub }}
+                    </a>
+                    {% endfor %}
+                </div>
+            </div>
+
+            <div class="sidebar-card">
+                <h3 class="sidebar-title">Settings</h3>
+                <div style="font-size: 14px; color: var(--text-secondary);">
+                    <p style="margin: 8px 0;"><strong>Posts per sub:</strong> {{ settings.get('posts_per_sub', 10) }}</p>
+                    <p style="margin: 8px 0;"><strong>Time window:</strong> {{ settings.get('time_window_hours', 24) }}h</p>
+                    <p style="margin: 8px 0;"><strong>Comments/post:</strong> {{ settings.get('comments_per_post', 5) }}</p>
+                </div>
+            </div>
+
+            <div class="sidebar-card">
+                <h3 class="sidebar-title">Actions</h3>
+                <div class="action-buttons">
+                    <a href="/" class="btn btn-secondary">Back to Dashboard</a>
+                    <a href="/new?template={{ run.goal_template }}" class="btn btn-ghost">Run Again</a>
+                </div>
+            </div>
+        </aside>
+    </div>
+</div>
+{% endblock %}

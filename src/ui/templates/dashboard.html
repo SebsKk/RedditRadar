@@ -1,0 +1,144 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Reddit Radar{% endblock %}
+
+{% block content %}
+<div class="container">
+    {% if not runs %}
+    <!-- Empty state -->
+    <div class="hero">
+        <h1 class="hero-title">Welcome to Reddit Radar</h1>
+        <p class="hero-subtitle">
+            Turn Reddit into your research radar. Analyze discussions, discover trends,
+            and extract insights powered by AI.
+        </p>
+        <a href="/new" class="btn btn-primary" style="font-size: 16px; padding: 14px 28px;">
+            Start Your First Analysis
+        </a>
+    </div>
+
+    <!-- Template cards -->
+    <div class="section">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">Choose Your Goal</h2>
+                <p class="section-subtitle">Select a template to get started</p>
+            </div>
+        </div>
+        <div class="grid grid-3">
+            {% for template in templates %}
+            <div class="card">
+                <div class="card-header">
+                    <div>
+                        <h3 class="card-title">{{ template.name }}</h3>
+                    </div>
+                    <span class="badge badge-accent">Template</span>
+                </div>
+                <div class="card-body">
+                    <p>{{ template.description }}</p>
+                </div>
+                <div class="card-footer">
+                    <div class="subreddit-list">
+                        {% for sub in template.suggested_subreddits[:3] %}
+                        <span class="subreddit-tag">{{ sub }}</span>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    {% else %}
+    <!-- Dashboard with runs -->
+    <div class="section">
+        <div class="section-header">
+            <div>
+                <h2 class="section-title">Recent Analyses</h2>
+                <p class="section-subtitle">Your latest research runs</p>
+            </div>
+            <a href="/new" class="btn btn-primary">New Analysis</a>
+        </div>
+
+        <div class="grid grid-2">
+            {% for item in runs %}
+            <a href="/run/{{ item.run.run_id }}" class="card" style="text-decoration: none;">
+                <div class="card-header">
+                    <div>
+                        <h3 class="card-title">{{ item.template.name if item.template else item.run.goal_template }}</h3>
+                        <p class="card-subtitle">{{ item.date_formatted }}</p>
+                    </div>
+                    <span class="badge badge-success">Completed</span>
+                </div>
+
+                <div class="card-body">
+                    <div class="subreddit-list mb-4">
+                        {% for sub in item.subreddits[:4] %}
+                        <span class="subreddit-tag">{{ sub }}</span>
+                        {% endfor %}
+                        {% if item.subreddits|length > 4 %}
+                        <span class="badge">+{{ item.subreddits|length - 4 }}</span>
+                        {% endif %}
+                    </div>
+
+                    {% if item.insights %}
+                    <ul class="insight-list">
+                        {% for insight in item.insights %}
+                        <li class="insight-item">
+                            <span class="insight-number">{{ loop.index }}</span>
+                            <span class="insight-text">{{ insight }}</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    {% endif %}
+                </div>
+
+                <div class="card-footer">
+                    <span class="text-secondary text-sm">Click to view full report</span>
+                    <span class="text-accent font-medium">&rarr;</span>
+                </div>
+            </a>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- Quick stats -->
+    <div class="section">
+        <div class="section-header">
+            <h2 class="section-title">Quick Stats</h2>
+        </div>
+        <div class="stats-grid" id="stats-grid">
+            <div class="stat-card">
+                <div class="stat-value">{{ runs|length }}</div>
+                <div class="stat-label">Total Runs</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="posts-count">-</div>
+                <div class="stat-label">Posts Analyzed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="comments-count">-</div>
+                <div class="stat-label">Comments Fetched</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value">{{ templates|length }}</div>
+                <div class="stat-label">Templates</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
+
+{% block extra_scripts %}
+<script>
+    // Fetch stats
+    fetch('/api/stats')
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('posts-count').textContent = data.posts || 0;
+            document.getElementById('comments-count').textContent = data.comments || 0;
+        })
+        .catch(() => {});
+</script>
+{% endblock %}

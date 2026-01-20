@@ -1,0 +1,115 @@
+# Reddit Radar Configuration
+# Copy this to config/local.yaml and customize as needed
+
+# Goal settings
+goal:
+  # Available templates: content_ideas, trend_radar, industry_intel, career_intel, deep_research
+  template: "content_ideas"
+
+  # Custom goal (overrides template if set)
+  custom_prompt: ""
+
+# Prompt builder settings (optional refinements)
+prompt_builder:
+  # Output format: bullets / brief / structured
+  output_format: "structured"
+
+  # Include source links in output
+  include_links: true
+
+  # Output length: short / medium / long
+  output_length: "medium"
+
+  # Creativity level: low / medium / high
+  creativity: "medium"
+
+  # Factuality: strict / balanced / exploratory
+  factuality: "balanced"
+
+  # Tone: neutral / direct / playful
+  tone: "neutral"
+
+  # Additional instructions (free text)
+  extra_instructions: ""
+
+# Data collection settings
+collection:
+  # Number of subreddits to analyze: 3 / 5 / 10
+  subreddit_count: 5
+
+  # Posts to fetch per subreddit: 5 / 10 / 20
+  posts_per_subreddit: 10
+
+  # Comments per post (always 5)
+  comments_per_post: 5
+
+  # Time window in hours: 24 / 72 / 144
+  time_window_hours: 24
+
+  # Feed mode: top / rising
+  feed_mode: "top"
+
+# Ranking settings (local scoring, no LLM)
+ranking:
+  # Total posts to send to LLM
+  shortlist_size: 25
+
+  # Scoring weights
+  weight_score: 1.0
+  weight_comments: 1.5
+  weight_recency: 0.5
+  weight_keywords: 2.0
+
+  # Recency decay (hours until score halves)
+  recency_half_life: 24
+
+# LLM settings
+llm:
+  # Mode: single / multi
+  mode: "single"
+
+  # Primary provider: deepseek / openai / anthropic
+  provider: "deepseek"
+
+  # Model to use
+  model: "deepseek-chat"
+
+  # Generation settings
+  temperature: 0.7
+  max_tokens: 4000
+
+  # Multi-model settings (for future use)
+  multi_models:
+    - provider: "deepseek"
+      model: "deepseek-chat"
+    - provider: "openai"
+      model: "gpt-4"
+    - provider: "anthropic"
+      model: "claude-3-sonnet"
+
+# Output settings
+output:
+  # Directory for markdown reports
+  directory: "./output"
+
+  # Date format for filenames
+  date_format: "%Y-%m-%d"
+
+  # Keep history for N days (0 = forever)
+  retention_days: 0
+
+# Database settings
+database:
+  # SQLite database path
+  path: "./reddit_radar.db"
+
+# Web UI settings
+ui:
+  # Host to bind to
+  host: "127.0.0.1"
+
+  # Port to listen on
+  port: 8000
+
+  # Enable debug mode
+  debug: false

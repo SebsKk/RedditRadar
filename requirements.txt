@@ -1,0 +1,37 @@
+# Reddit Radar Dependencies
+
+# Reddit API
+praw>=7.7.0
+
+# LLM Client (OpenAI-compatible for DeepSeek)
+openai>=1.0.0
+
+# Web Framework
+fastapi>=0.109.0
+uvicorn[standard]>=0.27.0
+jinja2>=3.1.0
+python-multipart>=0.0.6
+
+# Configuration
+pyyaml>=6.0.0
+python-dotenv>=1.0.0
+
+# CLI
+click>=8.1.0
+rich>=13.0.0
+
+# Database (SQLite is built-in, but we use this for async support)
+aiosqlite>=0.19.0
+
+# Utilities
+httpx>=0.26.0
+markdown>=3.5.0
+
+# Development / Testing
+pytest>=7.4.0
+pytest-asyncio>=0.23.0
+pytest-cov>=4.1.0
+
+# Type checking (optional but recommended)
+# mypy>=1.8.0
+# types-pyyaml>=6.0.0

@@ -1,0 +1,1413 @@
+{% extends "base.html" %}
+
+{% block title %}New Analysis - Reddit Radar{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .form-page {
+        padding: 48px 0;
+    }
+
+    .form-container {
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .form-header {
+        text-align: center;
+        margin-bottom: 48px;
+    }
+
+    .form-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 12px;
+    }
+
+    .form-subtitle {
+        font-size: 16px;
+        color: var(--text-secondary);
+    }
+
+    .form-section {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 32px;
+        margin-bottom: 24px;
+    }
+
+    .form-section-title {
+        font-size: 18px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 24px;
+        display: flex;
+        align-items: center;
+        gap: 12px;
+    }
+
+    .form-section-number {
+        width: 28px;
+        height: 28px;
+        background: var(--accent);
+        color: white;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 14px;
+        font-weight: 600;
+    }
+
+    /* Template Grid */
+    .template-grid {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 12px;
+        margin-bottom: 24px;
+    }
+
+    @media (max-width: 768px) {
+        .template-grid {
+            grid-template-columns: repeat(2, 1fr);
+        }
+    }
+
+    @media (max-width: 480px) {
+        .template-grid {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    .template-option {
+        position: relative;
+    }
+
+    .template-option input {
+        position: absolute;
+        opacity: 0;
+        width: 0;
+        height: 0;
+    }
+
+    .template-option label {
+        display: block;
+        padding: 16px;
+        border: 2px solid var(--border);
+        border-radius: var(--radius-sm);
+        cursor: pointer;
+        transition: all 0.15s ease;
+        height: 100%;
+    }
+
+    .template-option label:hover {
+        border-color: var(--accent);
+        background: var(--accent-light);
+    }
+
+    .template-option input:checked + label {
+        border-color: var(--accent);
+        background: var(--accent-light);
+    }
+
+    .template-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+
+    .template-desc {
+        font-size: 12px;
+        color: var(--text-secondary);
+        line-height: 1.4;
+    }
+
+    /* Custom Goal Section */
+    .custom-goal-section {
+        display: none;
+        margin-top: 20px;
+        padding-top: 20px;
+        border-top: 1px solid var(--border);
+    }
+
+    .custom-goal-section.visible {
+        display: block;
+    }
+
+    /* Form Elements */
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-label {
+        display: block;
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+
+    .form-label-hint {
+        font-weight: 400;
+        color: var(--text-secondary);
+        font-size: 13px;
+    }
+
+    .form-input, .form-select, .form-textarea {
+        width: 100%;
+        padding: 12px 16px;
+        font-size: 14px;
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        background: var(--bg-primary);
+        color: var(--text-primary);
+        transition: all 0.15s ease;
+        font-family: inherit;
+    }
+
+    .form-textarea {
+        min-height: 100px;
+        resize: vertical;
+    }
+
+    .form-input:focus, .form-select:focus, .form-textarea:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 3px var(--accent-light);
+    }
+
+    .form-row {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 16px;
+    }
+
+    @media (max-width: 640px) {
+        .form-row {
+            grid-template-columns: 1fr;
+        }
+    }
+
+    /* Discovery Section */
+    .discovery-section {
+        margin-top: 20px;
+    }
+
+    .discovery-input-row {
+        display: flex;
+        gap: 12px;
+        margin-bottom: 16px;
+    }
+
+    .discovery-input-row .form-input {
+        flex: 1;
+    }
+
+    .btn-discover {
+        white-space: nowrap;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .discover-spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid rgba(255,255,255,0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+        display: none;
+    }
+
+    .btn-discover.loading .discover-spinner {
+        display: block;
+    }
+
+    .btn-discover.loading .discover-text {
+        display: none;
+    }
+
+    /* Subreddit Results */
+    .subreddit-results {
+        display: none;
+        margin-top: 20px;
+    }
+
+    .subreddit-results.visible {
+        display: block;
+    }
+
+    .subreddit-results-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 12px;
+    }
+
+    .subreddit-results-title {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .subreddit-results-count {
+        font-size: 13px;
+        color: var(--text-secondary);
+    }
+
+    .subreddit-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        max-height: 400px;
+        overflow-y: auto;
+        padding-right: 8px;
+    }
+
+    .subreddit-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 12px 16px;
+        background: var(--bg-tertiary);
+        border-radius: var(--radius-sm);
+        border: 1px solid transparent;
+        cursor: pointer;
+        transition: all 0.15s ease;
+    }
+
+    .subreddit-item:hover {
+        border-color: var(--accent);
+    }
+
+    .subreddit-item.selected {
+        background: var(--accent-light);
+        border-color: var(--accent);
+    }
+
+    .subreddit-checkbox {
+        width: 18px;
+        height: 18px;
+        border: 2px solid var(--border);
+        border-radius: 4px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        transition: all 0.15s ease;
+    }
+
+    .subreddit-item.selected .subreddit-checkbox {
+        background: var(--accent);
+        border-color: var(--accent);
+        color: white;
+    }
+
+    .subreddit-info {
+        flex: 1;
+        min-width: 0;
+    }
+
+    .subreddit-name {
+        font-size: 14px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .subreddit-title {
+        font-size: 12px;
+        color: var(--text-secondary);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+    }
+
+    .subreddit-stats {
+        text-align: right;
+        flex-shrink: 0;
+    }
+
+    .subreddit-subscribers {
+        font-size: 13px;
+        font-weight: 600;
+        color: var(--text-primary);
+    }
+
+    .subreddit-source {
+        font-size: 11px;
+        color: var(--text-muted);
+    }
+
+    /* Manual Add Section */
+    .manual-add-section {
+        margin-top: 16px;
+        padding-top: 16px;
+        border-top: 1px solid var(--border);
+    }
+
+    .manual-add-row {
+        display: flex;
+        gap: 8px;
+    }
+
+    .manual-add-row .form-input {
+        flex: 1;
+    }
+
+    /* Selected Subreddits Tags */
+    .selected-subreddits {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 16px;
+    }
+
+    .selected-tag {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        padding: 6px 12px;
+        background: var(--accent-light);
+        border: 1px solid var(--accent);
+        border-radius: 20px;
+        font-size: 13px;
+        color: var(--accent);
+    }
+
+    .selected-tag-remove {
+        cursor: pointer;
+        opacity: 0.7;
+        transition: opacity 0.15s;
+    }
+
+    .selected-tag-remove:hover {
+        opacity: 1;
+    }
+
+    /* Info Box */
+    .info-box {
+        background: var(--accent-light);
+        border-radius: var(--radius-sm);
+        padding: 16px;
+        margin-top: 16px;
+        font-size: 14px;
+        color: var(--accent);
+    }
+
+    .info-box strong {
+        display: block;
+        margin-bottom: 4px;
+    }
+
+    /* Form Actions */
+    .form-actions {
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+        padding-top: 24px;
+    }
+
+    .form-actions .btn {
+        padding: 14px 32px;
+        font-size: 16px;
+    }
+
+    /* Modal Styles (from previous) */
+    .modal-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.6);
+        backdrop-filter: blur(4px);
+        z-index: 1000;
+        justify-content: center;
+        align-items: center;
+        animation: fadeIn 0.2s ease;
+    }
+
+    .modal-overlay.active {
+        display: flex;
+    }
+
+    @keyframes fadeIn {
+        from { opacity: 0; }
+        to { opacity: 1; }
+    }
+
+    .modal-content {
+        background: var(--bg-secondary);
+        border-radius: var(--radius-lg);
+        padding: 48px;
+        max-width: 520px;
+        width: 90%;
+        text-align: center;
+        box-shadow: var(--shadow-lg), 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+        animation: slideUp 0.3s ease;
+    }
+
+    @keyframes slideUp {
+        from {
+            opacity: 0;
+            transform: translateY(20px) scale(0.95);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0) scale(1);
+        }
+    }
+
+    .modal-icon {
+        width: 88px;
+        height: 88px;
+        margin: 0 auto 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+    }
+
+    .modal-icon.running {
+        background: linear-gradient(135deg, var(--accent-light), #ede9fe);
+    }
+
+    .modal-icon.completed {
+        background: linear-gradient(135deg, var(--success-light), #d1fae5);
+    }
+
+    .modal-icon.failed {
+        background: linear-gradient(135deg, #fef2f2, #fee2e2);
+    }
+
+    .spinner {
+        width: 48px;
+        height: 48px;
+        border: 4px solid var(--accent-light);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+
+    .modal-title {
+        font-size: 24px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+
+    .modal-subtitle {
+        font-size: 15px;
+        color: var(--text-secondary);
+        margin-bottom: 32px;
+        line-height: 1.5;
+    }
+
+    .progress-section {
+        background: var(--bg-tertiary);
+        border-radius: var(--radius);
+        padding: 24px;
+        margin-bottom: 24px;
+    }
+
+    .progress-bar-outer {
+        width: 100%;
+        height: 6px;
+        background: var(--border);
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 16px;
+    }
+
+    .progress-bar-inner {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), #7c3aed, var(--accent));
+        background-size: 200% 100%;
+        border-radius: 3px;
+        transition: width 0.3s ease;
+        animation: shimmer 2s ease-in-out infinite;
+    }
+
+    @keyframes shimmer {
+        0% { background-position: 200% 0; }
+        100% { background-position: -200% 0; }
+    }
+
+    .progress-bar-inner.complete {
+        background: var(--success);
+        animation: none;
+    }
+
+    .progress-text {
+        font-size: 14px;
+        color: var(--text-secondary);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+    }
+
+    .progress-text .dot {
+        width: 6px;
+        height: 6px;
+        background: var(--accent);
+        border-radius: 50%;
+        animation: pulse 1.5s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+        0%, 100% { opacity: 0.4; transform: scale(0.8); }
+        50% { opacity: 1; transform: scale(1.2); }
+    }
+
+    .step-list {
+        text-align: left;
+        margin: 0;
+        padding: 0;
+        list-style: none;
+    }
+
+    .step-item {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 10px 0;
+        font-size: 14px;
+        color: var(--text-secondary);
+        border-bottom: 1px solid var(--border);
+    }
+
+    .step-item:last-child {
+        border-bottom: none;
+    }
+
+    .step-item.active {
+        color: var(--text-primary);
+        font-weight: 500;
+    }
+
+    .step-item.completed {
+        color: var(--success);
+    }
+
+    .step-icon {
+        width: 24px;
+        height: 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        flex-shrink: 0;
+        background: var(--bg-secondary);
+        border: 2px solid var(--border);
+        font-size: 12px;
+    }
+
+    .step-item.active .step-icon {
+        background: var(--accent-light);
+        border-color: var(--accent);
+        color: var(--accent);
+    }
+
+    .step-item.completed .step-icon {
+        background: var(--success);
+        border-color: var(--success);
+        color: white;
+    }
+
+    .modal-actions {
+        display: flex;
+        justify-content: center;
+        gap: 12px;
+        margin-top: 24px;
+    }
+
+    .modal-actions .btn {
+        padding: 12px 28px;
+    }
+
+    .success-checkmark {
+        width: 48px;
+        height: 48px;
+        color: var(--success);
+    }
+
+    .error-icon {
+        width: 48px;
+        height: 48px;
+        color: #ef4444;
+    }
+
+    .error-message {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: var(--radius-sm);
+        padding: 12px 16px;
+        color: #dc2626;
+        font-size: 13px;
+        text-align: left;
+        margin-top: 16px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container form-page">
+    <div class="form-container">
+        <div class="form-header">
+            <h1 class="form-title">New Analysis</h1>
+            <p class="form-subtitle">Configure your research goal, discover relevant subreddits, and run an analysis</p>
+        </div>
+
+        <form action="/new" method="post" id="run-form">
+            <!-- Step 1: Choose Goal -->
+            <div class="form-section">
+                <h2 class="form-section-title">
+                    <span class="form-section-number">1</span>
+                    Define Your Research Goal
+                </h2>
+
+                <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">
+                    Choose a template for quick start, or select "Custom" to define your own research goal.
+                </p>
+
+                <div class="template-grid">
+                    {% for template in templates %}
+                    <div class="template-option">
+                        <input type="radio" name="template" id="template-{{ template.id }}" value="{{ template.id }}"
+                               {% if selected_template == template.id %}checked{% elif not selected_template and loop.first %}checked{% endif %}
+                               onchange="handleTemplateChange(this)">
+                        <label for="template-{{ template.id }}">
+                            <div class="template-name">{{ template.name }}</div>
+                            <div class="template-desc">{{ template.description }}</div>
+                        </label>
+                    </div>
+                    {% endfor %}
+
+                    <!-- Custom Option -->
+                    <div class="template-option">
+                        <input type="radio" name="template" id="template-custom" value="custom"
+                               onchange="handleTemplateChange(this)">
+                        <label for="template-custom">
+                            <div class="template-name">Custom Goal</div>
+                            <div class="template-desc">Define your own research objective</div>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- Custom Goal Input (hidden by default) -->
+                <div class="custom-goal-section" id="custom-goal-section">
+                    <div class="form-group">
+                        <label class="form-label">
+                            Your Research Goal
+                            <span class="form-label-hint">- What do you want to learn from Reddit?</span>
+                        </label>
+                        <textarea name="custom_goal" id="custom-goal-input" class="form-textarea"
+                                  placeholder="Example: Find emerging AI tools that developers are excited about, identify common frustrations with existing solutions, and spot opportunities for new products..."></textarea>
+                    </div>
+                </div>
+
+                <!-- LLM Focus (always visible) -->
+                <div class="form-group" style="margin-top: 20px;">
+                    <label class="form-label">
+                        Additional Focus Areas
+                        <span class="form-label-hint">(optional) - Used for both subreddit discovery and AI analysis</span>
+                    </label>
+                    <textarea name="llm_focus" id="llm-focus-input" class="form-textarea" style="min-height: 80px;"
+                              placeholder="Example: Pay special attention to pricing complaints, look for mentions of specific competitors like X and Y, focus on B2B use cases..."></textarea>
+                </div>
+            </div>
+
+            <!-- Step 2: Subreddits -->
+            <div class="form-section">
+                <h2 class="form-section-title">
+                    <span class="form-section-number">2</span>
+                    Find Relevant Subreddits
+                </h2>
+
+                <p style="color: var(--text-secondary); font-size: 14px; margin-bottom: 20px;">
+                    Click Discover to find subreddits based on your goal and focus areas above, or enter a specific topic.
+                    <strong>You can also skip this step</strong> - clicking "Run Analysis" will auto-discover subreddits for you.
+                </p>
+
+                <div class="discovery-section">
+                    <div class="discovery-input-row">
+                        <input type="text" id="discovery-query" class="form-input"
+                               placeholder="Optional: enter specific topic, or leave empty to use your goal from Step 1">
+                        <button type="button" class="btn btn-primary btn-discover" id="discover-btn" onclick="discoverSubreddits()">
+                            <span class="discover-spinner"></span>
+                            <span class="discover-text">Discover</span>
+                        </button>
+                    </div>
+
+                    <!-- Discovery Results -->
+                    <div class="subreddit-results" id="subreddit-results">
+                        <div class="subreddit-results-header">
+                            <span class="subreddit-results-title">Found Subreddits</span>
+                            <span class="subreddit-results-count" id="results-count">0 found</span>
+                        </div>
+                        <div class="subreddit-list" id="subreddit-list">
+                            <!-- Populated by JavaScript -->
+                        </div>
+                    </div>
+
+                    <!-- Manual Add -->
+                    <div class="manual-add-section">
+                        <label class="form-label">Add subreddit manually</label>
+                        <div class="manual-add-row">
+                            <input type="text" id="manual-subreddit" class="form-input"
+                                   placeholder="Enter subreddit name (without r/)">
+                            <button type="button" class="btn btn-secondary" onclick="addManualSubreddit()">Add</button>
+                        </div>
+                    </div>
+
+                    <!-- Selected Subreddits Display -->
+                    <div class="selected-subreddits" id="selected-subreddits">
+                        <!-- Populated by JavaScript -->
+                    </div>
+
+                    <!-- Hidden field to store selected subreddits -->
+                    <input type="hidden" name="subreddits" id="subreddits-hidden" value="">
+                </div>
+            </div>
+
+            <!-- Step 3: Settings -->
+            <div class="form-section">
+                <h2 class="form-section-title">
+                    <span class="form-section-number">3</span>
+                    Configure Settings
+                </h2>
+
+                <div class="form-row">
+                    <div class="form-group">
+                        <label class="form-label">Subreddits to Use</label>
+                        <select name="subreddit_count" id="subreddit-count" class="form-select">
+                            <option value="3">3 subreddits (faster)</option>
+                            <option value="5" selected>5 subreddits</option>
+                            <option value="10">10 subreddits (thorough)</option>
+                            <option value="15">15 subreddits</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Posts per Subreddit</label>
+                        <select name="posts_per_sub" class="form-select">
+                            <option value="5">5 posts (faster)</option>
+                            <option value="10" selected>10 posts</option>
+                            <option value="20">20 posts (thorough)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Time Window</label>
+                        <select name="time_window" class="form-select">
+                            <option value="24" selected>Last 24 hours</option>
+                            <option value="72">Last 3 days</option>
+                            <option value="144">Last 6 days</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div class="form-row" style="margin-top: 16px;">
+                    <div class="form-group">
+                        <label class="form-label">Comments per Post</label>
+                        <select name="comments_per_post" class="form-select">
+                            <option value="3">3 comments (faster)</option>
+                            <option value="5" selected>5 comments</option>
+                            <option value="10">10 comments (thorough)</option>
+                        </select>
+                    </div>
+
+                    <div class="form-group">
+                        <label class="form-label">Use LLM for Discovery</label>
+                        <select id="use-llm-discovery" class="form-select">
+                            <option value="true" selected>Yes (recommended)</option>
+                            <option value="false">No (Reddit search only)</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Hidden fields -->
+            <input type="hidden" name="run_now" id="run_now_field" value="false">
+
+            <!-- Actions -->
+            <div class="form-actions">
+                <a href="/" class="btn btn-secondary">Cancel</a>
+                <button type="button" class="btn btn-primary" id="run-btn" onclick="startAnalysis()">
+                    <svg width="18" height="18" fill="none" stroke="currentColor" viewBox="0 0 24 24" style="margin-right: 8px;">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z"/>
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/>
+                    </svg>
+                    Run Analysis
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Progress Modal -->
+<div class="modal-overlay" id="progress-modal">
+    <div class="modal-content">
+        <!-- Running State -->
+        <div id="modal-running">
+            <div class="modal-icon running">
+                <div class="spinner"></div>
+            </div>
+            <h2 class="modal-title">Analyzing Reddit</h2>
+            <p class="modal-subtitle">Please wait while we fetch and analyze posts...</p>
+
+            <div class="progress-section">
+                <div class="progress-bar-outer">
+                    <div class="progress-bar-inner" id="progress-bar" style="width: 10%;"></div>
+                </div>
+                <p class="progress-text">
+                    <span class="dot"></span>
+                    <span id="progress-text">Initializing...</span>
+                </p>
+            </div>
+
+            <ul class="step-list">
+                <li class="step-item active" data-step="init">
+                    <span class="step-icon">1</span>
+                    <span>Loading configuration</span>
+                </li>
+                <li class="step-item" data-step="fetch">
+                    <span class="step-icon">2</span>
+                    <span>Fetching Reddit posts</span>
+                </li>
+                <li class="step-item" data-step="rank">
+                    <span class="step-icon">3</span>
+                    <span>Ranking & shortlisting</span>
+                </li>
+                <li class="step-item" data-step="analyze">
+                    <span class="step-icon">4</span>
+                    <span>AI analysis</span>
+                </li>
+                <li class="step-item" data-step="save">
+                    <span class="step-icon">5</span>
+                    <span>Saving results</span>
+                </li>
+            </ul>
+        </div>
+
+        <!-- Completed State -->
+        <div id="modal-completed" style="display: none;">
+            <div class="modal-icon completed">
+                <svg class="success-checkmark" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+                </svg>
+            </div>
+            <h2 class="modal-title">Analysis Complete!</h2>
+            <p class="modal-subtitle">Your research digest is ready.</p>
+
+            <div class="modal-actions">
+                <a href="/" class="btn btn-secondary">Dashboard</a>
+                <a href="#" class="btn btn-primary" id="view-results-btn">View Results</a>
+            </div>
+        </div>
+
+        <!-- Failed State -->
+        <div id="modal-failed" style="display: none;">
+            <div class="modal-icon failed">
+                <svg class="error-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                </svg>
+            </div>
+            <h2 class="modal-title">Analysis Failed</h2>
+            <p class="modal-subtitle">Something went wrong.</p>
+            <div class="error-message" id="error-message"></div>
+
+            <div class="modal-actions">
+                <a href="/" class="btn btn-secondary">Dashboard</a>
+                <button class="btn btn-primary" onclick="closeModal()">Try Again</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    // State
+    let selectedSubreddits = new Set();
+    let discoveredSubreddits = [];
+    let currentJobId = null;
+    let pollInterval = null;
+
+    // Template descriptions for discovery
+    const templateHints = {
+        'content_ideas': 'content marketing blogging social media audience engagement',
+        'trend_radar': 'emerging trends technology future predictions',
+        'industry_intel': 'industry business competitive intelligence market',
+        'career_intel': 'career jobs skills programming technology',
+        'deep_research': 'research analysis discussion',
+    };
+
+    // Build discovery query from context
+    function buildDiscoveryQuery() {
+        const template = document.querySelector('input[name="template"]:checked')?.value || '';
+        const customGoal = document.getElementById('custom-goal-input').value.trim();
+        const focusAreas = document.getElementById('llm-focus-input').value.trim();
+
+        let parts = [];
+
+        // Add template hint or custom goal
+        if (template === 'custom' && customGoal) {
+            // Extract key terms from custom goal (first 100 chars)
+            parts.push(customGoal.substring(0, 100));
+        } else if (template && templateHints[template]) {
+            parts.push(templateHints[template]);
+        }
+
+        // Add focus areas if provided
+        if (focusAreas) {
+            parts.push(focusAreas.substring(0, 100));
+        }
+
+        return parts.join(' ').trim();
+    }
+
+    // Template change handler
+    function handleTemplateChange(input) {
+        const customSection = document.getElementById('custom-goal-section');
+        if (input.value === 'custom') {
+            customSection.classList.add('visible');
+        } else {
+            customSection.classList.remove('visible');
+        }
+
+        // Update discovery query placeholder/suggestion
+        updateDiscoveryHint();
+    }
+
+    // Update discovery input hint based on context
+    function updateDiscoveryHint() {
+        const queryInput = document.getElementById('discovery-query');
+        const template = document.querySelector('input[name="template"]:checked')?.value || '';
+
+        if (template === 'custom') {
+            queryInput.placeholder = 'Enter topic or leave empty to use your custom goal';
+        } else if (templateHints[template]) {
+            queryInput.placeholder = `e.g., "${templateHints[template].split(' ').slice(0, 3).join(', ')}" or your specific topic`;
+        }
+    }
+
+    // Discover subreddits
+    async function discoverSubreddits(autoQuery = null) {
+        let query = autoQuery || document.getElementById('discovery-query').value.trim();
+
+        // If no query provided, build one from context
+        if (!query) {
+            query = buildDiscoveryQuery();
+            console.log(`[Discovery] Built query from context: "${query}"`);
+        } else {
+            console.log(`[Discovery] Using provided query: "${query}"`);
+        }
+
+        if (!query) {
+            alert('Please enter a topic to discover subreddits, or fill in your research goal first');
+            return false;
+        }
+
+        console.log(`[Discovery] Starting discovery for: "${query}"`);
+
+        const btn = document.getElementById('discover-btn');
+        const resultsDiv = document.getElementById('subreddit-results');
+        const listDiv = document.getElementById('subreddit-list');
+        const countSpan = document.getElementById('results-count');
+
+        btn.classList.add('loading');
+        btn.disabled = true;
+
+        try {
+            const useLlm = document.getElementById('use-llm-discovery').value === 'true';
+
+            const formData = new FormData();
+            formData.append('goal', query);
+            formData.append('use_llm', useLlm);
+
+            const response = await fetch('/api/discover', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await response.json();
+            console.log(`[Discovery] API response:`, data);
+
+            if (data.success && data.subreddits.length > 0) {
+                console.log(`[Discovery] Found ${data.subreddits.length} subreddits`);
+                data.subreddits.forEach((sub, i) => {
+                    console.log(`[Discovery]   ${i+1}. r/${sub.name} (${sub.subscribers_formatted}) - ${sub.source}`);
+                });
+
+                discoveredSubreddits = data.subreddits;
+
+                // Render results
+                listDiv.innerHTML = '';
+                data.subreddits.forEach(sub => {
+                    const isSelected = selectedSubreddits.has(sub.name);
+                    const item = document.createElement('div');
+                    item.className = `subreddit-item ${isSelected ? 'selected' : ''}`;
+                    item.onclick = () => toggleSubreddit(sub.name, item);
+                    item.innerHTML = `
+                        <div class="subreddit-checkbox">${isSelected ? '&#10003;' : ''}</div>
+                        <div class="subreddit-info">
+                            <div class="subreddit-name">r/${sub.name}</div>
+                            <div class="subreddit-title">${sub.title}</div>
+                        </div>
+                        <div class="subreddit-stats">
+                            <div class="subreddit-subscribers">${sub.subscribers_formatted}</div>
+                            <div class="subreddit-source">${sub.source === 'llm_suggestion' ? 'AI suggested' : 'Reddit search'}</div>
+                        </div>
+                    `;
+                    listDiv.appendChild(item);
+                });
+
+                countSpan.textContent = `${data.subreddits.length} found`;
+                resultsDiv.classList.add('visible');
+
+                // Auto-select based on user's subreddit count setting
+                const subCount = parseInt(document.getElementById('subreddit-count').value) || 5;
+                console.log(`[Discovery] Auto-selecting top ${subCount} subreddits`);
+                data.subreddits.slice(0, subCount).forEach(sub => {
+                    if (!selectedSubreddits.has(sub.name)) {
+                        selectedSubreddits.add(sub.name);
+                        console.log(`[Discovery]   Selected: r/${sub.name}`);
+                    }
+                });
+                updateSelectedDisplay();
+                updateSubredditList();
+                return true;
+
+            } else {
+                if (!autoQuery) {
+                    alert(data.error || 'No subreddits found. Try a different search term.');
+                }
+                return false;
+            }
+
+        } catch (error) {
+            console.error('Discovery error:', error);
+            if (!autoQuery) {
+                alert('Failed to discover subreddits. Please try again.');
+            }
+            return false;
+        } finally {
+            btn.classList.remove('loading');
+            btn.disabled = false;
+        }
+    }
+
+    // Toggle subreddit selection
+    function toggleSubreddit(name, element) {
+        if (selectedSubreddits.has(name)) {
+            selectedSubreddits.delete(name);
+            element.classList.remove('selected');
+            element.querySelector('.subreddit-checkbox').innerHTML = '';
+        } else {
+            selectedSubreddits.add(name);
+            element.classList.add('selected');
+            element.querySelector('.subreddit-checkbox').innerHTML = '&#10003;';
+        }
+        updateSelectedDisplay();
+    }
+
+    // Update the subreddit list UI
+    function updateSubredditList() {
+        const items = document.querySelectorAll('.subreddit-item');
+        items.forEach(item => {
+            const name = item.querySelector('.subreddit-name').textContent.replace('r/', '');
+            if (selectedSubreddits.has(name)) {
+                item.classList.add('selected');
+                item.querySelector('.subreddit-checkbox').innerHTML = '&#10003;';
+            } else {
+                item.classList.remove('selected');
+                item.querySelector('.subreddit-checkbox').innerHTML = '';
+            }
+        });
+    }
+
+    // Update selected subreddits display
+    function updateSelectedDisplay() {
+        const container = document.getElementById('selected-subreddits');
+        const hidden = document.getElementById('subreddits-hidden');
+
+        container.innerHTML = '';
+        selectedSubreddits.forEach(name => {
+            const tag = document.createElement('span');
+            tag.className = 'selected-tag';
+            tag.innerHTML = `
+                r/${name}
+                <span class="selected-tag-remove" onclick="removeSubreddit('${name}')">&times;</span>
+            `;
+            container.appendChild(tag);
+        });
+
+        hidden.value = Array.from(selectedSubreddits).join(',');
+    }
+
+    // Remove subreddit
+    function removeSubreddit(name) {
+        selectedSubreddits.delete(name);
+        updateSelectedDisplay();
+        updateSubredditList();
+    }
+
+    // Add manual subreddit
+    async function addManualSubreddit() {
+        const input = document.getElementById('manual-subreddit');
+        let name = input.value.trim();
+
+        // Remove r/ prefix if present
+        name = name.replace(/^r\//i, '');
+
+        if (!name) return;
+
+        // Validate format
+        if (!/^[a-zA-Z][a-zA-Z0-9_]{1,20}$/.test(name)) {
+            alert('Invalid subreddit name format');
+            return;
+        }
+
+        // Check if already selected
+        if (selectedSubreddits.has(name)) {
+            alert('Subreddit already selected');
+            input.value = '';
+            return;
+        }
+
+        // Validate via API
+        try {
+            const response = await fetch(`/api/subreddit/${name}`);
+            const data = await response.json();
+
+            if (data.success) {
+                selectedSubreddits.add(data.subreddit.name);
+                updateSelectedDisplay();
+                input.value = '';
+            } else {
+                alert(data.error || 'Subreddit not found');
+            }
+        } catch (error) {
+            alert('Failed to validate subreddit');
+        }
+    }
+
+    // Modal functions
+    const modal = document.getElementById('progress-modal');
+    const modalRunning = document.getElementById('modal-running');
+    const modalCompleted = document.getElementById('modal-completed');
+    const modalFailed = document.getElementById('modal-failed');
+    const progressBar = document.getElementById('progress-bar');
+    const progressText = document.getElementById('progress-text');
+    const viewResultsBtn = document.getElementById('view-results-btn');
+    const errorMessage = document.getElementById('error-message');
+
+    function openModal() {
+        modal.classList.add('active');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeModal() {
+        modal.classList.remove('active');
+        document.body.style.overflow = '';
+        if (pollInterval) {
+            clearInterval(pollInterval);
+            pollInterval = null;
+        }
+        modalRunning.style.display = 'block';
+        modalCompleted.style.display = 'none';
+        modalFailed.style.display = 'none';
+        resetSteps();
+    }
+
+    function resetSteps() {
+        document.querySelectorAll('.step-item').forEach((item, index) => {
+            item.classList.remove('active', 'completed');
+            if (index === 0) item.classList.add('active');
+            item.querySelector('.step-icon').textContent = index + 1;
+        });
+        progressBar.style.width = '10%';
+        progressBar.classList.remove('complete');
+    }
+
+    function updateStep(stepName) {
+        const steps = ['init', 'fetch', 'rank', 'analyze', 'save'];
+        const stepIndex = steps.indexOf(stepName);
+
+        document.querySelectorAll('.step-item').forEach((item, index) => {
+            if (index < stepIndex) {
+                item.classList.remove('active');
+                item.classList.add('completed');
+                item.querySelector('.step-icon').innerHTML = '&#10003;';
+            } else if (index === stepIndex) {
+                item.classList.add('active');
+                item.classList.remove('completed');
+            } else {
+                item.classList.remove('active', 'completed');
+            }
+        });
+
+        const progress = ((stepIndex + 1) / steps.length) * 100;
+        progressBar.style.width = `${progress}%`;
+    }
+
+    function detectStep(progressMsg) {
+        const msg = progressMsg.toLowerCase();
+        if (msg.includes('loading') || msg.includes('initializ')) return 'init';
+        if (msg.includes('fetching') || msg.includes('fetched')) return 'fetch';
+        if (msg.includes('ranking') || msg.includes('shortlist')) return 'rank';
+        if (msg.includes('analyz') || msg.includes('llm')) return 'analyze';
+        if (msg.includes('saving') || msg.includes('complete')) return 'save';
+        return 'init';
+    }
+
+    function showCompleted(runId) {
+        modalRunning.style.display = 'none';
+        modalCompleted.style.display = 'block';
+        viewResultsBtn.href = `/run/${runId}`;
+        progressBar.style.width = '100%';
+        progressBar.classList.add('complete');
+    }
+
+    function showFailed(error) {
+        modalRunning.style.display = 'none';
+        modalFailed.style.display = 'block';
+        errorMessage.textContent = error || 'An unexpected error occurred.';
+    }
+
+    function pollJobStatus() {
+        if (!currentJobId) return;
+
+        fetch(`/api/job/${currentJobId}`)
+            .then(response => response.json())
+            .then(data => {
+                progressText.textContent = data.progress;
+                updateStep(detectStep(data.progress));
+
+                if (data.status === 'completed') {
+                    clearInterval(pollInterval);
+                    showCompleted(data.run_id);
+                } else if (data.status === 'failed') {
+                    clearInterval(pollInterval);
+                    showFailed(data.error);
+                }
+            })
+            .catch(error => {
+                console.error('Polling error:', error);
+            });
+    }
+
+    // Start analysis
+    async function startAnalysis() {
+        const template = document.querySelector('input[name="template"]:checked').value;
+        console.log(`[Analysis] Starting analysis with template: ${template}`);
+
+        // Validate custom goal if using custom template
+        if (template === 'custom') {
+            const customGoal = document.getElementById('custom-goal-input').value.trim();
+            if (!customGoal) {
+                alert('Please enter your research goal for custom analysis.');
+                return;
+            }
+            console.log(`[Analysis] Custom goal: ${customGoal.substring(0, 100)}...`);
+        }
+
+        // Auto-discover if no subreddits selected
+        if (selectedSubreddits.size === 0) {
+            console.log(`[Analysis] No subreddits selected, auto-discovering...`);
+            const query = buildDiscoveryQuery();
+            if (!query) {
+                alert('Please enter a topic to discover subreddits, or select a template first.');
+                return;
+            }
+            console.log(`[Analysis] Auto-discovery query: "${query}"`);
+
+            // Show a brief message that we're auto-discovering
+            const btn = document.getElementById('run-btn');
+            const originalText = btn.innerHTML;
+            btn.innerHTML = '<span class="discover-spinner" style="display:inline-block;"></span> Finding subreddits...';
+            btn.disabled = true;
+
+            const discovered = await discoverSubreddits(query);
+
+            btn.innerHTML = originalText;
+            btn.disabled = false;
+
+            if (!discovered || selectedSubreddits.size === 0) {
+                alert('Could not find relevant subreddits. Please try entering a topic manually in the discovery box.');
+                return;
+            }
+        }
+
+        const subredditsArray = Array.from(selectedSubreddits);
+        console.log(`[Analysis] Selected subreddits (${subredditsArray.length}): ${subredditsArray.join(', ')}`);
+
+        const postsPerSub = document.querySelector('select[name="posts_per_sub"]').value;
+        const timeWindow = document.querySelector('select[name="time_window"]').value;
+        console.log(`[Analysis] Settings: ${postsPerSub} posts/sub, ${timeWindow}h window`);
+
+        openModal();
+        resetSteps();
+
+        try {
+            const form = document.getElementById('run-form');
+            const formData = new FormData(form);
+            formData.set('run_now', 'true');
+            formData.set('subreddits', subredditsArray.join(','));
+
+            console.log(`[Analysis] Sending request to /api/run`);
+            const response = await fetch('/api/run', {
+                method: 'POST',
+                body: formData,
+            });
+
+            const data = await response.json();
+            console.log(`[Analysis] Job response:`, data);
+
+            if (data.job_id) {
+                currentJobId = data.job_id;
+                console.log(`[Analysis] Job started with ID: ${data.job_id}`);
+                pollInterval = setInterval(pollJobStatus, 1500);
+            } else if (data.error) {
+                console.error(`[Analysis] Job failed:`, data.error);
+                showFailed(data.error);
+            }
+        } catch (error) {
+            showFailed(error.message);
+        }
+    }
+
+    // Allow Enter key in discovery input
+    document.getElementById('discovery-query').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            discoverSubreddits();
+        }
+    });
+
+    document.getElementById('manual-subreddit').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            addManualSubreddit();
+        }
+    });
+
+    // Initialize on page load
+    document.addEventListener('DOMContentLoaded', () => {
+        updateDiscoveryHint();
+    });
+
+    // Update hint when custom goal or focus areas change
+    document.getElementById('custom-goal-input').addEventListener('input', updateDiscoveryHint);
+    document.getElementById('llm-focus-input').addEventListener('input', updateDiscoveryHint);
+</script>
+{% endblock %}

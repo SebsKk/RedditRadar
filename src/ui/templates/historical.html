@@ -1,0 +1,757 @@
+{% extends "base.html" %}
+
+{% block title %}Historical Analysis - Reddit Radar{% endblock %}
+
+{% block content %}
+<div class="page-header">
+    <h1>Historical Analysis</h1>
+    <p class="subtitle">Track patterns and trends across your past runs</p>
+</div>
+
+<div class="analysis-container">
+    <!-- Controls -->
+    <div class="controls-card">
+        <h2>Analysis Parameters</h2>
+        <form id="analysis-form">
+            <div class="form-row">
+                <div class="form-group">
+                    <label for="days">Time Range</label>
+                    <select id="days" name="days">
+                        <option value="7">Last 7 days</option>
+                        <option value="14">Last 14 days</option>
+                        <option value="30" selected>Last 30 days</option>
+                        <option value="60">Last 60 days</option>
+                        <option value="90">Last 90 days</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="template">Template Filter</label>
+                    <select id="template" name="template">
+                        <option value="">All Templates</option>
+                        {% for t in templates %}
+                        <option value="{{ t.id }}">{{ t.name }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+            </div>
+            <div class="form-actions">
+                <button type="button" class="btn btn-secondary" onclick="getSummary()">Quick Summary (No LLM)</button>
+                <button type="button" class="btn btn-primary" onclick="runAnalysis()">Run Deep Analysis (LLM)</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Results -->
+    <div class="results-section" id="results-section" style="display: none;">
+        <!-- Summary Stats -->
+        <div class="stats-row" id="stats-row">
+            <div class="stat-card">
+                <div class="stat-value" id="stat-days">-</div>
+                <div class="stat-label">Days Analyzed</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-runs">-</div>
+                <div class="stat-label">Runs Found</div>
+            </div>
+            <div class="stat-card">
+                <div class="stat-value" id="stat-ideas">-</div>
+                <div class="stat-label">Unique Ideas</div>
+            </div>
+        </div>
+
+        <!-- Two-column layout for patterns -->
+        <div class="patterns-grid">
+            <!-- Recurring Ideas -->
+            <div class="pattern-card">
+                <h3>Recurring Ideas</h3>
+                <p class="pattern-subtitle">Ideas that appear across multiple runs</p>
+                <div class="pattern-list" id="recurring-ideas">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+
+            <!-- Recurring Clusters -->
+            <div class="pattern-card">
+                <h3>Recurring Clusters</h3>
+                <p class="pattern-subtitle">Topics that keep appearing</p>
+                <div class="pattern-list" id="recurring-clusters">
+                    <div class="loading">Loading...</div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cluster Heatmap -->
+        <div class="heatmap-card" id="heatmap-card">
+            <h3>Cluster Value Heatmap</h3>
+            <p class="heatmap-subtitle">Visual representation of cluster value across runs (brighter = higher value to your goal)</p>
+            <div class="heatmap-container">
+                <canvas id="heatmap-canvas"></canvas>
+            </div>
+            <div class="heatmap-legend">
+                <span class="legend-label">Low Value</span>
+                <div class="legend-gradient"></div>
+                <span class="legend-label">High Value</span>
+            </div>
+            <div class="heatmap-empty" id="heatmap-empty" style="display: none;">
+                <p>No heatmap data available yet. Run more analyses to build history.</p>
+            </div>
+        </div>
+
+        <!-- LLM Analysis -->
+        <div class="llm-analysis-card" id="llm-analysis-card" style="display: none;">
+            <h3>AI-Powered Historical Analysis</h3>
+            <div class="analysis-content" id="llm-analysis-content">
+                <div class="loading">Generating analysis...</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading State -->
+    <div class="loading-overlay" id="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p id="loading-message">Loading...</p>
+    </div>
+</div>
+
+<style>
+.analysis-container {
+    max-width: 1200px;
+    margin: 0 auto;
+}
+
+.controls-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.controls-card h2 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+}
+
+.form-row {
+    display: flex;
+    gap: 1.5rem;
+    margin-bottom: 1.5rem;
+}
+
+.form-group {
+    flex: 1;
+}
+
+.form-group label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+}
+
+.form-group select {
+    width: 100%;
+    padding: 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    font-size: 1rem;
+    background: var(--bg-primary);
+    color: var(--text-primary);
+}
+
+.form-actions {
+    display: flex;
+    gap: 1rem;
+    justify-content: flex-end;
+}
+
+.btn {
+    padding: 0.75rem 1.5rem;
+    border: none;
+    border-radius: 6px;
+    font-size: 1rem;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-primary {
+    background: var(--accent);
+    color: white;
+}
+
+.btn-secondary {
+    background: var(--border);
+    color: var(--text-primary);
+}
+
+.stats-row {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 1rem;
+    margin-bottom: 2rem;
+}
+
+.stat-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    text-align: center;
+}
+
+.stat-value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    color: var(--accent);
+}
+
+.stat-label {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+}
+
+.patterns-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.pattern-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.pattern-card h3 {
+    margin-top: 0;
+    margin-bottom: 0.25rem;
+}
+
+.pattern-subtitle {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.pattern-list {
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+.pattern-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0.75rem;
+    border-bottom: 1px solid var(--border);
+}
+
+.pattern-item:last-child {
+    border-bottom: none;
+}
+
+.pattern-name {
+    flex: 1;
+    font-weight: 500;
+}
+
+.pattern-count {
+    background: var(--accent);
+    color: white;
+    padding: 0.25rem 0.75rem;
+    border-radius: 12px;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.pattern-meta {
+    font-size: 0.8rem;
+    color: var(--text-muted);
+    margin-top: 0.25rem;
+}
+
+.llm-analysis-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+}
+
+.llm-analysis-card h3 {
+    margin-top: 0;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.llm-analysis-card h3::before {
+    content: '';
+    display: inline-block;
+    width: 20px;
+    height: 20px;
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    border-radius: 50%;
+}
+
+.analysis-content {
+    line-height: 1.7;
+}
+
+.analysis-content h2 {
+    margin-top: 1.5rem;
+    margin-bottom: 0.75rem;
+    font-size: 1.25rem;
+    color: var(--text-primary);
+}
+
+.analysis-content h3 {
+    margin-top: 1.25rem;
+    margin-bottom: 0.5rem;
+    font-size: 1.1rem;
+}
+
+.analysis-content ul {
+    margin: 0.5rem 0;
+    padding-left: 1.5rem;
+}
+
+.analysis-content li {
+    margin-bottom: 0.5rem;
+}
+
+.loading-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.5);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 1000;
+}
+
+.spinner {
+    width: 48px;
+    height: 48px;
+    border: 4px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.loading-overlay p {
+    margin-top: 1rem;
+    color: white;
+    font-size: 1.1rem;
+}
+
+.empty-state {
+    text-align: center;
+    padding: 2rem;
+    color: var(--text-muted);
+}
+
+.heatmap-card {
+    background: var(--bg-secondary);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.heatmap-card h3 {
+    margin-top: 0;
+    margin-bottom: 0.25rem;
+}
+
+.heatmap-subtitle {
+    color: var(--text-muted);
+    font-size: 0.9rem;
+    margin-bottom: 1rem;
+}
+
+.heatmap-container {
+    position: relative;
+    width: 100%;
+    min-height: 300px;
+    max-height: 500px;
+}
+
+.heatmap-legend {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    margin-top: 1rem;
+    font-size: 0.85rem;
+    color: var(--text-muted);
+}
+
+.legend-gradient {
+    width: 150px;
+    height: 12px;
+    background: linear-gradient(to right,
+        hsl(240, 70%, 20%),
+        hsl(200, 70%, 40%),
+        hsl(160, 70%, 50%),
+        hsl(80, 70%, 50%),
+        hsl(40, 80%, 55%),
+        hsl(0, 80%, 55%));
+    border-radius: 6px;
+}
+
+.heatmap-empty {
+    text-align: center;
+    padding: 3rem;
+    color: var(--text-muted);
+}
+
+@media (max-width: 768px) {
+    .form-row, .stats-row, .patterns-grid {
+        grid-template-columns: 1fr;
+    }
+}
+</style>
+
+<!-- Chart.js and Matrix plugin for heatmap -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chartjs-chart-matrix@2.0.1/dist/chartjs-chart-matrix.min.js"></script>
+
+<script>
+// Heatmap chart instance
+let heatmapChart = null;
+
+function showLoading(message) {
+    document.getElementById('loading-message').textContent = message;
+    document.getElementById('loading-overlay').style.display = 'flex';
+}
+
+function hideLoading() {
+    document.getElementById('loading-overlay').style.display = 'none';
+}
+
+function showResults() {
+    document.getElementById('results-section').style.display = 'block';
+}
+
+async function getSummary() {
+    const days = document.getElementById('days').value;
+    const template = document.getElementById('template').value;
+
+    showLoading('Fetching historical summary...');
+    showResults();
+
+    try {
+        const params = new URLSearchParams({ days, template });
+        const response = await fetch(`/api/historical-summary?${params}`);
+        const data = await response.json();
+
+        if (data.success) {
+            // Update stats
+            document.getElementById('stat-days').textContent = data.days_analyzed;
+            document.getElementById('stat-runs').textContent = data.runs_found;
+            document.getElementById('stat-ideas').textContent = data.all_ideas_count || 0;
+
+            // Update recurring ideas
+            const ideasContainer = document.getElementById('recurring-ideas');
+            if (data.recurring_ideas && data.recurring_ideas.length > 0) {
+                ideasContainer.innerHTML = data.recurring_ideas.map(idea => `
+                    <div class="pattern-item">
+                        <div>
+                            <div class="pattern-name">${escapeHtml(idea.idea)}</div>
+                            <div class="pattern-meta">${idea.dates ? idea.dates.join(', ') : ''}</div>
+                        </div>
+                        <span class="pattern-count">${idea.frequency}x</span>
+                    </div>
+                `).join('');
+            } else {
+                ideasContainer.innerHTML = '<div class="empty-state">No recurring ideas found yet. Run more analyses to build history.</div>';
+            }
+
+            // Update recurring clusters
+            const clustersContainer = document.getElementById('recurring-clusters');
+            if (data.recurring_clusters && data.recurring_clusters.length > 0) {
+                clustersContainer.innerHTML = data.recurring_clusters.map(cluster => `
+                    <div class="pattern-item">
+                        <div>
+                            <div class="pattern-name">${escapeHtml(cluster.cluster)}</div>
+                            <div class="pattern-meta">Total engagement: ${cluster.total_engagement}</div>
+                        </div>
+                        <span class="pattern-count">${cluster.appearances}x</span>
+                    </div>
+                `).join('');
+            } else {
+                clustersContainer.innerHTML = '<div class="empty-state">No recurring clusters found yet.</div>';
+            }
+
+            // Hide LLM analysis card for summary
+            document.getElementById('llm-analysis-card').style.display = 'none';
+        } else {
+            alert(data.error || 'Failed to fetch summary');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+async function runAnalysis() {
+    const days = document.getElementById('days').value;
+    const template = document.getElementById('template').value;
+
+    showLoading('Running deep historical analysis with LLM... This may take a minute.');
+    showResults();
+
+    try {
+        const formData = new FormData();
+        formData.append('days', days);
+        formData.append('template', template);
+
+        const response = await fetch('/api/historical-analysis', {
+            method: 'POST',
+            body: formData
+        });
+        const data = await response.json();
+
+        if (data.success) {
+            // Update stats
+            document.getElementById('stat-days').textContent = data.days_analyzed;
+            document.getElementById('stat-runs').textContent = data.runs_analyzed;
+            document.getElementById('stat-ideas').textContent = data.recurring_ideas?.length || 0;
+
+            // Update recurring ideas
+            const ideasContainer = document.getElementById('recurring-ideas');
+            if (data.recurring_ideas && data.recurring_ideas.length > 0) {
+                ideasContainer.innerHTML = data.recurring_ideas.map(idea => `
+                    <div class="pattern-item">
+                        <div class="pattern-name">${escapeHtml(typeof idea === 'string' ? idea : idea.idea || idea)}</div>
+                    </div>
+                `).join('');
+            } else {
+                ideasContainer.innerHTML = '<div class="empty-state">No recurring ideas found.</div>';
+            }
+
+            // Update recurring clusters
+            const clustersContainer = document.getElementById('recurring-clusters');
+            if (data.recurring_clusters && data.recurring_clusters.length > 0) {
+                clustersContainer.innerHTML = data.recurring_clusters.map(cluster => `
+                    <div class="pattern-item">
+                        <div class="pattern-name">${escapeHtml(typeof cluster === 'string' ? cluster : cluster.cluster || cluster)}</div>
+                    </div>
+                `).join('');
+            } else {
+                clustersContainer.innerHTML = '<div class="empty-state">No recurring clusters found.</div>';
+            }
+
+            // Show LLM analysis
+            document.getElementById('llm-analysis-card').style.display = 'block';
+            const analysisContent = document.getElementById('llm-analysis-content');
+
+            if (data.llm_analysis) {
+                // Simple markdown to HTML conversion
+                let html = data.llm_analysis
+                    .replace(/^### (.*$)/gim, '<h3>$1</h3>')
+                    .replace(/^## (.*$)/gim, '<h2>$1</h2>')
+                    .replace(/^# (.*$)/gim, '<h1>$1</h1>')
+                    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+                    .replace(/\*(.*?)\*/g, '<em>$1</em>')
+                    .replace(/^- (.*$)/gim, '<li>$1</li>')
+                    .replace(/<li>/g, '</ul><ul><li>')
+                    .replace(/<\/li>\n<\/ul><ul>/g, '</li>')
+                    .replace(/^<\/ul>/, '')
+                    .replace(/\n\n/g, '</p><p>')
+                    .replace(/\n/g, '<br>');
+
+                html = '<p>' + html + '</p>';
+                html = html.replace(/<p><h/g, '<h').replace(/<\/h(\d)><\/p>/g, '</h$1>');
+                html = html.replace(/<p><ul>/g, '<ul>').replace(/<\/ul><\/p>/g, '</ul>');
+
+                analysisContent.innerHTML = html;
+            } else {
+                analysisContent.innerHTML = '<div class="empty-state">No LLM analysis generated.</div>';
+            }
+        } else {
+            alert(data.error || 'Analysis failed');
+        }
+    } catch (error) {
+        alert('Error: ' + error.message);
+    } finally {
+        hideLoading();
+    }
+}
+
+function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+}
+
+// Color scale for heatmap (0-10 value mapped to color)
+function getHeatmapColor(value) {
+    // Map 0-10 to a color gradient (blue -> green -> yellow -> red)
+    const normalized = Math.max(0, Math.min(10, value)) / 10;
+
+    if (normalized < 0.25) {
+        // Blue to cyan
+        const t = normalized / 0.25;
+        return `hsl(${240 - t * 40}, 70%, ${20 + t * 20}%)`;
+    } else if (normalized < 0.5) {
+        // Cyan to green
+        const t = (normalized - 0.25) / 0.25;
+        return `hsl(${200 - t * 40}, 70%, ${40 + t * 10}%)`;
+    } else if (normalized < 0.75) {
+        // Green to yellow
+        const t = (normalized - 0.5) / 0.25;
+        return `hsl(${160 - t * 80}, 70%, 50%)`;
+    } else {
+        // Yellow to red
+        const t = (normalized - 0.75) / 0.25;
+        return `hsl(${80 - t * 80}, 80%, 55%)`;
+    }
+}
+
+async function loadHeatmap() {
+    const days = document.getElementById('days').value;
+
+    try {
+        const response = await fetch(`/api/heatmap?days=${days}&max_runs=20`);
+        const data = await response.json();
+
+        if (!data.success || !data.data || data.data.length === 0) {
+            document.getElementById('heatmap-empty').style.display = 'block';
+            document.querySelector('.heatmap-container').style.display = 'none';
+            document.querySelector('.heatmap-legend').style.display = 'none';
+            return;
+        }
+
+        document.getElementById('heatmap-empty').style.display = 'none';
+        document.querySelector('.heatmap-container').style.display = 'block';
+        document.querySelector('.heatmap-legend').style.display = 'flex';
+
+        // Prepare data for Chart.js matrix
+        const chartData = data.data.map(d => ({
+            x: d.x,
+            y: d.y,
+            v: d.v,
+            freq: d.freq,
+            engagement: d.engagement
+        }));
+
+        // Build labels
+        const xLabels = data.runs.map(r => r.label);
+        const yLabels = data.clusters.map(cid => data.cluster_labels[cid] || cid);
+
+        // Calculate canvas height based on number of clusters
+        const canvas = document.getElementById('heatmap-canvas');
+        const cellHeight = 30;
+        const minHeight = 200;
+        const calculatedHeight = Math.max(minHeight, yLabels.length * cellHeight + 80);
+        canvas.parentElement.style.height = calculatedHeight + 'px';
+
+        // Destroy existing chart
+        if (heatmapChart) {
+            heatmapChart.destroy();
+        }
+
+        // Create new chart
+        const ctx = canvas.getContext('2d');
+        heatmapChart = new Chart(ctx, {
+            type: 'matrix',
+            data: {
+                datasets: [{
+                    label: 'Cluster Value',
+                    data: chartData,
+                    backgroundColor(context) {
+                        const value = context.dataset.data[context.dataIndex]?.v || 0;
+                        return getHeatmapColor(value);
+                    },
+                    borderColor: 'rgba(255, 255, 255, 0.1)',
+                    borderWidth: 1,
+                    width: ({chart}) => (chart.chartArea || {}).width / xLabels.length - 2,
+                    height: ({chart}) => (chart.chartArea || {}).height / yLabels.length - 2
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: {
+                    legend: {
+                        display: false
+                    },
+                    tooltip: {
+                        callbacks: {
+                            title() {
+                                return '';
+                            },
+                            label(context) {
+                                const d = context.dataset.data[context.dataIndex];
+                                const cluster = yLabels[d.y] || 'Unknown';
+                                const run = xLabels[d.x] || 'Unknown';
+                                return [
+                                    `Cluster: ${cluster}`,
+                                    `Run: ${run}`,
+                                    `Value Score: ${d.v.toFixed(1)}/10`,
+                                    `Posts: ${d.freq}`,
+                                    `Engagement: ${d.engagement}`
+                                ];
+                            }
+                        }
+                    }
+                },
+                scales: {
+                    x: {
+                        type: 'category',
+                        labels: xLabels,
+                        offset: true,
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            maxRotation: 45,
+                            color: 'var(--text-muted)'
+                        }
+                    },
+                    y: {
+                        type: 'category',
+                        labels: yLabels,
+                        offset: true,
+                        grid: {
+                            display: false
+                        },
+                        ticks: {
+                            color: 'var(--text-muted)'
+                        }
+                    }
+                }
+            }
+        });
+
+    } catch (error) {
+        console.error('Failed to load heatmap:', error);
+        document.getElementById('heatmap-empty').style.display = 'block';
+        document.querySelector('.heatmap-container').style.display = 'none';
+    }
+}
+
+// Load summary and heatmap on page load
+window.addEventListener('load', () => {
+    getSummary();
+    loadHeatmap();
+});
+
+// Reload heatmap when days selection changes
+document.getElementById('days').addEventListener('change', () => {
+    loadHeatmap();
+});
+</script>
+{% endblock %}

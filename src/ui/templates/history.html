@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}History - Reddit Radar{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .history-header {
+        padding: 48px 0 32px;
+    }
+
+    .history-title {
+        font-size: 32px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+
+    .history-subtitle {
+        font-size: 16px;
+        color: var(--text-secondary);
+    }
+
+    .history-list {
+        padding-bottom: 48px;
+    }
+
+    .history-item {
+        display: grid;
+        grid-template-columns: 1fr 200px 150px 100px;
+        align-items: center;
+        gap: 24px;
+        padding: 20px 24px;
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-sm);
+        margin-bottom: 12px;
+        text-decoration: none;
+        transition: all 0.15s ease;
+    }
+
+    .history-item:hover {
+        border-color: var(--accent);
+        box-shadow: var(--shadow);
+    }
+
+    @media (max-width: 768px) {
+        .history-item {
+            grid-template-columns: 1fr;
+            gap: 12px;
+        }
+    }
+
+    .history-item-main h3 {
+        font-size: 16px;
+        font-weight: 600;
+        color: var(--text-primary);
+        margin-bottom: 4px;
+    }
+
+    .history-item-date {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .history-item-subs {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+    }
+
+    .history-item-subs .subreddit-tag {
+        font-size: 12px;
+        padding: 2px 8px;
+    }
+
+    .history-item-status {
+        text-align: right;
+    }
+
+    @media (max-width: 768px) {
+        .history-item-status {
+            text-align: left;
+        }
+    }
+
+    .history-item-action {
+        text-align: right;
+        color: var(--accent);
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+    @media (max-width: 768px) {
+        .history-item-action {
+            text-align: left;
+        }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="history-header">
+        <h1 class="history-title">Run History</h1>
+        <p class="history-subtitle">View all your past analyses</p>
+    </div>
+
+    <div class="history-list">
+        {% if runs %}
+            {% for item in runs %}
+            <a href="/run/{{ item.run.run_id }}" class="history-item">
+                <div class="history-item-main">
+                    <h3>{{ item.template.name if item.template else item.run.goal_template }}</h3>
+                    <div class="history-item-date">{{ item.date_formatted }}</div>
+                </div>
+
+                <div class="history-item-subs">
+                    {% for sub in item.subreddits[:3] %}
+                    <span class="subreddit-tag">{{ sub }}</span>
+                    {% endfor %}
+                    {% if item.subreddits|length > 3 %}
+                    <span class="badge">+{{ item.subreddits|length - 3 }}</span>
+                    {% endif %}
+                </div>
+
+                <div class="history-item-status">
+                    <span class="badge badge-success">Completed</span>
+                </div>
+
+                <div class="history-item-action">
+                    View &rarr;
+                </div>
+            </a>
+            {% endfor %}
+        {% else %}
+            <div class="empty-state">
+                <div class="empty-state-icon">📋</div>
+                <h3 class="empty-state-title">No runs yet</h3>
+                <p class="empty-state-text">Start your first analysis to see it here.</p>
+                <a href="/new" class="btn btn-primary">New Analysis</a>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

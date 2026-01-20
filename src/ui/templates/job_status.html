@@ -1,0 +1,286 @@
+{% extends "base.html" %}
+
+{% block title %}Analysis Running - Reddit Radar{% endblock %}
+
+{% block extra_styles %}
+<style>
+    .status-page {
+        padding: 80px 0;
+        text-align: center;
+    }
+
+    .status-container {
+        max-width: 600px;
+        margin: 0 auto;
+    }
+
+    .status-icon {
+        width: 80px;
+        height: 80px;
+        margin: 0 auto 24px;
+        border-radius: 50%;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 40px;
+    }
+
+    .status-icon.running {
+        background: var(--accent-light);
+        color: var(--accent);
+    }
+
+    .status-icon.completed {
+        background: var(--success-light);
+        color: var(--success);
+    }
+
+    .status-icon.failed {
+        background: #fef2f2;
+        color: #ef4444;
+    }
+
+    .status-icon.pending {
+        background: var(--warning-light);
+        color: var(--warning);
+    }
+
+    .status-title {
+        font-size: 28px;
+        font-weight: 700;
+        color: var(--text-primary);
+        margin-bottom: 8px;
+    }
+
+    .status-subtitle {
+        font-size: 16px;
+        color: var(--text-secondary);
+        margin-bottom: 32px;
+    }
+
+    .progress-container {
+        background: var(--bg-secondary);
+        border: 1px solid var(--border);
+        border-radius: var(--radius);
+        padding: 32px;
+        margin-bottom: 24px;
+    }
+
+    .progress-bar-outer {
+        width: 100%;
+        height: 8px;
+        background: var(--bg-tertiary);
+        border-radius: 4px;
+        overflow: hidden;
+        margin-bottom: 16px;
+    }
+
+    .progress-bar-inner {
+        height: 100%;
+        background: linear-gradient(90deg, var(--accent), #7c3aed);
+        border-radius: 4px;
+        transition: width 0.3s ease;
+    }
+
+    .progress-bar-inner.indeterminate {
+        width: 30% !important;
+        animation: indeterminate 1.5s ease-in-out infinite;
+    }
+
+    @keyframes indeterminate {
+        0% { transform: translateX(-100%); }
+        100% { transform: translateX(400%); }
+    }
+
+    .progress-text {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .job-details {
+        background: var(--bg-tertiary);
+        border-radius: var(--radius-sm);
+        padding: 16px;
+        text-align: left;
+        margin-top: 24px;
+    }
+
+    .job-details-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid var(--border);
+    }
+
+    .job-details-item:last-child {
+        border-bottom: none;
+    }
+
+    .job-details-label {
+        font-size: 14px;
+        color: var(--text-secondary);
+    }
+
+    .job-details-value {
+        font-size: 14px;
+        font-weight: 500;
+        color: var(--text-primary);
+    }
+
+    .error-message {
+        background: #fef2f2;
+        border: 1px solid #fecaca;
+        border-radius: var(--radius-sm);
+        padding: 16px;
+        color: #dc2626;
+        font-size: 14px;
+        margin-top: 16px;
+        text-align: left;
+    }
+
+    .action-buttons {
+        margin-top: 32px;
+        display: flex;
+        justify-content: center;
+        gap: 16px;
+    }
+
+    .spinner {
+        display: inline-block;
+        width: 40px;
+        height: 40px;
+        border: 4px solid var(--accent-light);
+        border-top-color: var(--accent);
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        to { transform: rotate(360deg); }
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container status-page">
+    <div class="status-container">
+        {% if job.status == 'completed' %}
+        <div class="status-icon completed">
+            <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/>
+            </svg>
+        </div>
+        <h1 class="status-title">Analysis Complete!</h1>
+        <p class="status-subtitle">Your research digest is ready to view</p>
+        {% elif job.status == 'failed' %}
+        <div class="status-icon failed">
+            <svg width="40" height="40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+        </div>
+        <h1 class="status-title">Analysis Failed</h1>
+        <p class="status-subtitle">Something went wrong during the analysis</p>
+        {% else %}
+        <div class="status-icon running">
+            <div class="spinner"></div>
+        </div>
+        <h1 class="status-title">Analysis Running</h1>
+        <p class="status-subtitle">Please wait while we analyze Reddit posts...</p>
+        {% endif %}
+
+        <div class="progress-container">
+            {% if job.status == 'running' or job.status == 'pending' %}
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner indeterminate"></div>
+            </div>
+            {% elif job.status == 'completed' %}
+            <div class="progress-bar-outer">
+                <div class="progress-bar-inner" style="width: 100%;"></div>
+            </div>
+            {% endif %}
+
+            <p class="progress-text" id="progress-text">{{ job.progress }}</p>
+
+            {% if job.error %}
+            <div class="error-message">
+                <strong>Error:</strong> {{ job.error }}
+            </div>
+            {% endif %}
+
+            <div class="job-details">
+                <div class="job-details-item">
+                    <span class="job-details-label">Template</span>
+                    <span class="job-details-value">{{ template.name if template else job.template }}</span>
+                </div>
+                <div class="job-details-item">
+                    <span class="job-details-label">Subreddits</span>
+                    <span class="job-details-value">
+                        {% if job.subreddits %}
+                        {{ job.subreddits | join(', ') }}
+                        {% else %}
+                        Using template defaults
+                        {% endif %}
+                    </span>
+                </div>
+                <div class="job-details-item">
+                    <span class="job-details-label">Posts per subreddit</span>
+                    <span class="job-details-value">{{ job.posts_per_sub }}</span>
+                </div>
+                <div class="job-details-item">
+                    <span class="job-details-label">Time window</span>
+                    <span class="job-details-value">{{ job.time_window }} hours</span>
+                </div>
+                <div class="job-details-item">
+                    <span class="job-details-label">Status</span>
+                    <span class="job-details-value" id="status-value">{{ job.status | title }}</span>
+                </div>
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            {% if job.status == 'completed' and job.run_id %}
+            <a href="/run/{{ job.run_id }}" class="btn btn-primary">View Results</a>
+            <a href="/" class="btn btn-secondary">Back to Dashboard</a>
+            {% elif job.status == 'failed' %}
+            <a href="/new" class="btn btn-primary">Try Again</a>
+            <a href="/" class="btn btn-secondary">Back to Dashboard</a>
+            {% else %}
+            <a href="/" class="btn btn-secondary">Back to Dashboard</a>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+{% if job.status not in ['completed', 'failed'] %}
+<script>
+    // Poll for job status updates
+    const jobId = "{{ job.id }}";
+    const progressText = document.getElementById('progress-text');
+    const statusValue = document.getElementById('status-value');
+
+    function checkStatus() {
+        fetch(`/api/job/${jobId}`)
+            .then(response => response.json())
+            .then(data => {
+                progressText.textContent = data.progress;
+                statusValue.textContent = data.status.charAt(0).toUpperCase() + data.status.slice(1);
+
+                if (data.status === 'completed' || data.status === 'failed') {
+                    // Reload page to show final state
+                    window.location.reload();
+                } else {
+                    // Continue polling
+                    setTimeout(checkStatus, 2000);
+                }
+            })
+            .catch(error => {
+                console.error('Error checking status:', error);
+                setTimeout(checkStatus, 5000);
+            });
+    }
+
+    // Start polling
+    setTimeout(checkStatus, 2000);
+</script>
+{% endif %}
+{% endblock %}
